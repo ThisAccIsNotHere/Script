@@ -1,0 +1,1551 @@
+-- FREE SOURCE
+-- LEAKED BY FIRECAT 
+-- SKIDDERS DONT DESERVE MY ATTENTION OR PROTECTION
+-- what a skidded long script
+
+
+local lplr = game.Players.LocalPlayer
+  local player = game:GetService("Players")
+  local cam = workspace.CurrentCamera
+  local uis = game:GetService("UserInputService")
+local KnitClient = debug.getupvalue(require(lplr.PlayerScripts.TS.knit).setup, 6)
+local Client = require(game:GetService("ReplicatedStorage").TS.remotes).default.Client
+local getremote = function(tab)
+    for i,v in pairs(tab) do
+        if v == "Client" then
+            return tab[i + 1]
+        end
+    end
+    return ""
+end
+local bedwars = {
+    ["Projectile"] = Client:Get(getremote(debug.getconstants(debug.getupvalues(getmetatable(KnitClient.Controllers.ProjectileController)["launchProjectileWithValues"])[2]))),
+	["KnockbackUtil"] = debug.getupvalue(require(game:GetService("ReplicatedStorage").TS.damage["knockback-util"]).KnockbackUtil.calculateKnockbackVelocity, 1),
+	["CombatConstant"] = require(game:GetService("ReplicatedStorage").TS.combat["combat-constant"]).CombatConstant,
+	["SprintController"] = KnitClient.Controllers.SprintController,
+	["ShopItems"] = debug.getupvalue(require(game:GetService("ReplicatedStorage").TS.games.bedwars.shop["bedwars-shop"]).BedwarsShop.getShopItem, 2),
+	["PickupRemote"] = getremote(debug.getconstants(getmetatable(KnitClient.Controllers.ItemDropController).checkForPickup)),
+	["DamageController"] = require(lplr.PlayerScripts.TS.controllers.global.damage["damage-controller"]).DamageController,
+	["DamageTypes"] = require(game:GetService("ReplicatedStorage").TS.damage["damage-type"]).DamageType,
+    ["SwordRemote"] = getremote(debug.getconstants((KnitClient.Controllers.SwordController).attackEntity)),
+    ["PingController"] = require(lplr.PlayerScripts.TS.controllers.game.ping["ping-controller"]).PingController,
+    ["DamageIndicator"] = KnitClient.Controllers.DamageIndicatorController.spawnDamageIndicator,
+    ["ClientHandlerStore"] = require(lplr.PlayerScripts.TS.ui.store).ClientStore,
+    ["SwordController"] = KnitClient.Controllers.SwordController,
+    ["BlockCPSConstants"] = require(game:GetService("ReplicatedStorage").TS["shared-constants"]).CpsConstants,
+    ["BalloonController"] = KnitClient.Controllers.BalloonController,
+    ["ViewmodelController"] = KnitClient.Controllers.ViewmodelController,
+}
+function getQueueType()
+    local state = bedwars["ClientHandlerStore"]:getState()
+    return state.Game.queueType or "bedwars_test"
+end
+
+function isAlive(plr)
+    plr = plr or lplr
+    if not plr.Character then return false end
+    if not plr.Character:FindFirstChild("Head") then return false end
+    if not plr.Character:FindFirstChild("Humanoid") then return false end
+    return true
+end
+function canwalk(plr)
+    plr = plr or lplr
+    if not plr.Character then return false end
+    if not plr.Character:FindFirstChild("Humanoid") then return false end
+    local state = plr.Character:FindFirstChild("Humanoid"):GetState()
+    if state == Enum.HumanoidStateType.Dead then
+        return false
+    end
+    if state == Enum.HumanoidStateType.Ragdoll then
+        return false
+    end
+    return true
+end
+function GetMatchState()
+	return bedwars["ClientHandlerStore"]:getState().Game.matchState
+end
+
+function getbeds()
+    local beds = {}
+    for i,v in pairs(game:GetService("Workspace"):GetChildren()) do
+        if string.lower(v.Name) == "bed" and v:FindFirstChild("Covers") ~= nil and v:FindFirstChild("Covers").Color ~= lplr.Team.TeamColor then
+            table.insert(beds,v)
+        end
+    end
+    return beds
+end
+function getplayers()
+    local players = {}
+    for i,v in pairs(game:GetService("Players"):GetPlayers()) do
+        if v.Team ~= lplr.Team and isAlive(v) and v.Character:FindFirstChild("Humanoid").Health > 0.11 then
+            table.insert(players,v)
+        end
+    end
+    return players
+end
+function getserverpos(Position)
+    local x = math.round(Position.X/3)
+    local y = math.round(Position.Y/3)
+    local z = math.round(Position.Z/3)
+    return Vector3.new(x,y,z)
+end
+function getnearestplayer(maxdist)
+    local obj = lplr
+    local dist = math.huge
+    for i,v in pairs(game:GetService("Players"):GetChildren()) do
+        if v.Team ~= lplr.Team and v ~= lplr and isAlive(v) and isAlive(lplr) then
+            local mag = (v.Character:FindFirstChild("HumanoidRootPart").Position - lplr.Character:FindFirstChild("HumanoidRootPart").Position).Magnitude
+            if (mag < dist) and (mag < maxdist) then
+                dist = mag
+                obj = v
+            end
+        end
+    end
+    return obj
+end
+function getmatchstate()
+	return bedwars["ClientHandlerStore"]:getState().Game.matchState
+end
+function getqueuetype()
+    local state = bedwars["ClientHandlerStore"]:getState()
+    return state.Game.queueType or "bedwars_test"
+end
+function getitem(itm)
+    if isAlive(lplr) and lplr.Character:FindFirstChild("InventoryFolder").Value:FindFirstChild(itm) then
+        return true
+    end
+    return false
+end
+local old
+local VeloKnock = true
+local BedwarsSwords = require(game:GetService("ReplicatedStorage").TS.games.bedwars["bedwars-swords"]).BedwarsSwords
+    function hashFunc(vec) 
+        return {value = vec}
+    end
+    local function GetInventory(plr)
+        if not plr then 
+            return {items = {}, armor = {}}
+        end
+
+        local suc, ret = pcall(function() 
+            return require(game:GetService("ReplicatedStorage").TS.inventory["inventory-util"]).InventoryUtil.getInventory(plr)
+        end)
+
+        if not suc then 
+            return {items = {}, armor = {}}
+        end
+
+        if plr.Character and plr.Character:FindFirstChild("InventoryFolder") then 
+            local invFolder = plr.Character:FindFirstChild("InventoryFolder").Value
+            if not invFolder then return ret end
+            for i,v in next, ret do 
+                for i2, v2 in next, v do 
+                    if typeof(v2) == 'table' and v2.itemType then
+                        v2.instance = invFolder:FindFirstChild(v2.itemType)
+                    end
+                end
+                if typeof(v) == 'table' and v.itemType then
+                    v.instance = invFolder:FindFirstChild(v.itemType)
+                end
+            end
+        end
+
+        return ret
+    end
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Yopapa699/KavoUI/main/KavoUiLib"))()
+local Window = Library.CreateLib("Inferno X V3", "BloodTheme")
+local GameId = game.PlaceId
+local GameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+local plrs = game:GetService("Players")
+local plr = plrs.LocalPlayer
+local plrname = plr.Name
+local plrid = plr.UserId
+local plrchr = plr.Character
+local plrage = plr.AccountAge
+local plrcount = #game.Players:GetPlayers()
+
+local Tab = Window:NewTab("Home")
+local Section = Tab:NewSection("Welcome:" ..plrname.. " To: Inferno X")
+local Section = Tab:NewSection("Player Id: "..game.Players.LocalPlayer.UserId .."")
+local Section = Tab:NewSection("Account Age: "..game.Players.LocalPlayer.AccountAge.."")
+local Section = Tab:NewSection("Note: Inferno X on Top")
+local Section = Tab:NewSection("Owner Of Buttons")
+local Section = Tab:NewSection("GAMERSCRIPTER FOR HOME TAB")
+local Section = Tab:NewSection("AURORA FOR HELPING ME ADDING FEATURES")
+local Section = Tab:NewSection("AYTO FOR GIVING ME KILLAURA")
+local Section = Tab:NewSection("JN HH GAMING FOR  TRACER") -- ye bro faking Credits too 
+local Section = Tab:NewSection("AURORA FOR SPECIAL TEXTURE PACK")
+local Section = Tab:NewSection("SOMEONE GAVED ME WORK VELOCITY")
+local Section = Tab:NewSection("AURORA FOR EXPOSED NUKER")
+local Section = Tab:NewSection("Gamebreaker For ChinaHat")
+local Section = Tab:NewSection("AYTO FOR REACH V2")
+local Section = Tab:NewSection("AYTO FOR WORK VELOCITY")
+local Section = Tab:NewSection("More Coming soon")
+local Tab = Window:NewTab("Combat")
+local Section = Tab:NewSection("Killaura")
+
+Section:NewToggle("KillAura", "?", function(state) -- OMG BRO FROM ICECAT REALLY DUDE? 
+    if state then
+        local player = game:GetService("Players")
+        local lplr = player.LocalPlayer
+        local cam = workspace.CurrentCamera
+        local KnitClient = debug.getupvalue(require(lplr.PlayerScripts.TS.knit).setup, 6)
+        local SwordCont = KnitClient.Controllers.SwordController
+        
+        local aura = false
+        local DistVal = {["Value"] = 100}
+        
+        local connection
+        
+        function Aura()
+            for i,v in pairs(game.Players:GetChildren()) do
+                if v.Character and v.Name ~= game.Players.LocalPlayer.Name and v.Character:FindFirstChild("HumanoidRootPart") then
+                    local mag = (v.Character.HumanoidRootPart.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                    if mag <= DistVal["Value"] and v.Team ~= game.Players.LocalPlayer.Team and v.Character:FindFirstChild("Humanoid") then
+                        if v.Character.Humanoid.Health > 0 then
+                            aura = true
+                            SwordCont:swingSwordAtMouse()
+                        end
+                    end
+                end
+            end
+        end
+        
+        connection = game:GetService("RunService").Stepped:connect(function()
+            Aura()
+        end)
+    else
+        if connection then
+            connection:Disconnect()
+        end
+    end
+end)
+
+local Section = Tab:NewSection("No Swing")
+Section:NewToggle("No Swing ", "?", function(state) -- so good bro it works 
+         if state then 
+                 if killauraswing["Enabled"] == true then 
+                         killauraswing["Enabled"] = false 
+                 end 
+         else 
+                 if killauraswing["Enabled"] == false then 
+                         killauraswing["Enabled"] = true 
+                 end 
+         end 
+ end) 
+
+local Section = Tab:NewSection("Sound 1-0")
+Section:NewSlider("Sound 1-0", "No sound Killaura", 1, 0, function(val) 
+         killaurasoundval["Value"] = val 
+ end) 
+
+local Section = Tab:NewSection("Reach")
+Section:NewToggle("Reach", "Extend your attack range", function(state) -- skidded
+	if state then
+		CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = (reachval["Value"] - 0.0001)
+	else
+		CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = 14.4
+	end
+end)
+
+local Section = Tab:NewSection("Noclickdelay")
+Section:NewButton("No click Delay", "ButtonInfo", function() -- works perfectly fine bro u can code rel
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local clickTime = 0
+local debounce = false
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if debounce then
+            return
+        end
+        
+        clickTime = tick()
+        debounce = true
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if debounce and tick() - clickTime >= 0.2 then
+        debounce = false
+        -- Place your code here for the action you want to perform after the click 
+    end
+end)
+    print("Clicked")
+end)
+
+local Section = Tab:NewSection("Damge Indicator")
+Section:NewToggle("Damage incinator", "ToggleInfo", function(state) -- "incinator" + wonders where he got that indicator 
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/MiniNoobie/indicator/main/MeteorIndicator"))()
+end)
+
+local Section = Tab:NewSection("Stud Tp")
+local Section = Tab:NewSection("Already Leaked")
+local Section = Tab:NewSection("Dont Know If Work")
+Section:NewToggle("Stud Tp", "ToggleInfo", function(state) -- THIS SCRIPT IS SO SKIDDED FROM VAPE CONFIGS
+local Op = {Enabled = false}
+   local Studs = {Value = 26}
+Op = GuiLibrary.ObjectsThatCanBeSaved.BlatantWindow.Api.CreateOptionsButton({
+   Name = "studs tp",
+   Function = function(callback)
+      if callback then
+         task.spawn(function()
+            local player = GetLocalPlayer()
+            local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+            if humanoidRootPart then
+               local teleportDirection = humanoidRootPart.CFrame.lookVector
+               local teleportOffset = teleportDirection * Studs.Value -- Change the multiplier to adjust the distance forward
+               humanoidRootPart.CFrame = humanoidRootPart.CFrame + teleportOffset
+               Op.ToggleButton(false)
+            end
+         end)
+      end
+   end
+})
+
+Studs = GuiLibrary.ObjectsThatCanBeSaved.BlatantWindow.Api.CreateSlider({ -- gyys not frem a vap config rel
+   Name = "Studs",
+   Min = 0,
+   Max = 30,
+   Function = function(val) end,
+   Default = 26
+})
+
+function GetLocalPlayer()
+   return game:GetService("Players").LocalPlayer
+end
+end)
+
+local Section = Tab:NewSection("Speed Disabler")
+local Section = Tab:NewSection("Already Leaked")
+local Section = Tab:NewSection("Dont Know If Work")
+Section:NewToggle("Speed disabler", "ToggleInfo", function(state) -- trash skidded from ironsnow 
+repeat task.wait()
+
+local args = {
+    [1] = {
+        ["partPositions"] = {
+            [1] = Vector3.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame),
+            [2] = Vector3.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame),
+            [3] = Vector3.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame),
+            [4] = Vector3.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame),
+            [5] = Vector3.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame),
+            [6] = Vector3.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame),
+            [7] = Vector3.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame)
+        },
+        ["partSize"] = Vector3.new(999999, 0.5, 9999.99999999999999999999)
+    }
+}
+
+game:GetService("ReplicatedStorage"):WaitForChild("rbxts_include"):WaitForChild("node_modules"):WaitForChild("@rbxts"):WaitForChild("net"):WaitForChild("out"):WaitForChild("_NetManaged"):WaitForChild("SpiritBridgeEnter"):InvokeServer(unpack(args))
+until false
+end)
+
+local Tab = Window:NewTab("Blatant")
+local Section = Tab:NewSection("Fly V1")
+Section:NewButton("Fly On", "Enable", function()
+game.Workspace.Gravity = 0 -- BOZO WAS SAYING THAT IT DOESN'T WORK BUT HE USE IT TOO LOL
+    print("Clicked")
+end)
+
+Section:NewButton("Fly Off", "Disable", function()
+game.Workspace.Gravity = 192
+    print("Clicked")
+end)
+
+local Section = Tab:NewSection("Fly V2")
+Section:NewButton("Fly", "Enable", function()
+local Button = Instance.new("TextButton")
+Button.Name = "ZeroGravityButton"
+Button.Text = "Fly"
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(1, -70, 0, 10)
+Button.BackgroundColor3 = Color3.new(0, 0, 0)
+Button.TextColor3 = Color3.new(1, 1, 1)
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 24
+Button.Parent = game:GetService("CoreGui")
+
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local function onButtonClicked()
+    local character = Players.LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        humanoid.PlatformStand = not humanoid.PlatformStand
+        if not humanoid.PlatformStand then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            humanoid:TakeDamage(0)
+            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+            humanoid.Jump = true
+            humanoid.PlatformStand = false
+            humanoid.JumpPower = 0
+            humanoid.WalkSpeed = 0
+        else
+            humanoid.FreeFalling:Connect(function(freeFalling)
+                if not freeFalling then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+                    humanoid.PlatformStand = true
+                    humanoid.WalkSpeed = 16
+                    humanoid.JumpPower = 50
+                end
+            end)
+            humanoid.PlatformStand = true
+            humanoid.WalkSpeed = 0
+            humanoid.JumpPower = 0
+        end
+    end
+end
+Button.Activated:Connect(onButtonClicked)
+    print("Clicked")
+end)
+
+Section:NewToggle("NoFall", "Prevents Taking Fall Damage", function()
+    local NoFallEnabled = false -- this is a boolean variable indicating if NoFall is enabled
+
+    -- Function to toggle NoFall
+    local function toggleNoFall(state)
+        NoFallEnabled = state
+        if NoFallEnabled then
+            task.spawn(function()
+                repeat
+                    if not NoFallEnabled then break end
+                    task.wait(0.4)
+                    game:GetService("ReplicatedStorage").rbxts_include.node_modules:FindFirstChild("@rbxts").net.out._NetManaged.GroundHit:FireServer()
+                until not NoFallEnabled
+            end)
+        end
+    end
+
+    toggleNoFall(not NoFallEnabled)
+end)
+
+local Section = Tab:NewSection("Velocity")
+local KnockbackTable = debug.getupvalue(require(game:GetService("ReplicatedStorage").TS.damage["knockback-util"]).KnockbackUtil.calculateKnockbackVelocity, 1)
+local ClientHandler = Client
+Section:NewToggle("Velocity", "Credits to 7yto", function(state)
+         if state then
+                 KnockbackTable["kbDirectionStrength"] = 0
+                 KnockbackTable["kbUpwardStrength"] = 0 
+         else 
+                 KnockbackTable["kbDirectionStrength"] = 100 
+                 KnockbackTable["kbUpwardStrength"] = 100 
+         end
+ end) 
+ 
+local Tab = Window:NewTab("Render")
+local Section = Tab:NewSection("Fps | Ping Counter")
+Section:NewButton("Ping Counter","Ping Detector",function()
+loadstring(game:HttpGet("https://pastebin.com/raw/MvKKJ331",true))()
+end)
+
+Section:NewButton("Fps Counter","Fps Detector",function()
+loadstring(game:HttpGet("https://pastebin.com/raw/ySHJdZpb",true))()
+end)
+
+local SytroNightRemakeWaterMark = Instance.new("ScreenGui") -- sytronight watermark 
+
+local TextLabel = Instance.new("TextButton")
+
+local UIGradient = Instance.new("UIGradient")
+
+local TextLabel_2 = Instance.new("TextLabel")
+
+local UIGradient_2 = Instance.new("UIGradient")
+
+local UITextSizeConstraint = Instance.new("UITextSizeConstraint")
+
+local UITextSizeConstraint_2 = Instance.new("UITextSizeConstraint")
+
+SytroNightRemakeWaterMark.Name = "ByfronX"
+
+SytroNightRemakeWaterMark.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+SytroNightRemakeWaterMark.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+SytroNightRemakeWaterMark.ResetOnSpawn = false
+
+TextLabel.Parent = SytroNightRemake
+
+TextLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+
+TextLabel.BackgroundTransparency = 1.000
+
+TextLabel.BorderSizePixel = 0
+
+TextLabel.Position = UDim2.new(-0.000772226602, 0, 0.0343558267, 0)
+
+TextLabel.Size = UDim2.new(0.170134634, 0, 0.0700389072, 0)
+
+TextLabel.Font = Enum.Font.GothamBold
+
+TextLabel.Text = "ByfronX"
+
+TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+TextLabel.TextScaled = true
+
+TextLabel.TextSize = 28.000
+
+TextLabel.TextWrapped = true
+
+TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+TextLabel.MouseButton1Down:Connect(function()
+
+	print("Haha yez i made dat")
+
+end)
+
+UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(126, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(209, 0, 0))}
+
+UIGradient.Parent = TextLabel
+
+TextLabel_2.Parent = TextLabel
+
+TextLabel_2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+
+TextLabel_2.BackgroundTransparency = 1.000
+
+TextLabel_2.BorderSizePixel = 0
+
+TextLabel_2.Position = UDim2.new(-0.000772226602, 0, 0.67410934, 0)
+
+TextLabel_2.Size = UDim2.new(1, 0, 1, 0)
+
+TextLabel_2.Font = Enum.Font.GothamBold
+
+TextLabel_2.Text = "Private "
+
+TextLabel_2.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+TextLabel_2.TextScaled = true
+
+TextLabel_2.TextSize = 24.000
+
+TextLabel_2.TextWrapped = true
+
+TextLabel_2.TextXAlignment = Enum.TextXAlignment.Left
+
+UIGradient_2.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(126, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(209, 0, 0))}
+
+UIGradient_2.Parent = TextLabel_2
+
+UITextSizeConstraint.Parent = TextLabel_2
+
+UITextSizeConstraint.MaxTextSize = 24
+
+UITextSizeConstraint_2.Parent = TextLabel
+
+UITextSizeConstraint_2.MaxTextSize = 27
+
+local vu = game:GetService("VirtualUser")
+
+game:GetService("Players").LocalPlayer.Idled:connect(function()
+
+    vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+
+    wait(1)
+
+    vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+
+end)
+
+-- u guys can continue scrolling cuz i'm tired of seeing all of those skidded features 
+
+local Section = Tab:NewSection("Esp")
+Section:NewButton("ESP", "See player", function()
+local FillColor = Color3.fromRGB(175,25,255)
+local DepthMode = "AlwaysOnTop"
+local FillTransparency = 0.5
+local OutlineColor = Color3.fromRGB(255,255,255)
+local OutlineTransparency = 0
+
+local CoreGui = game:FindService("CoreGui")
+local Players = game:FindService("Players")
+local lp = Players.LocalPlayer
+local connections = {}
+
+local Storage = Instance.new("Folder")
+Storage.Parent = CoreGui
+Storage.Name = "Highlight_Storage"
+
+local function Highlight(plr)
+    local Highlight = Instance.new("Highlight")
+    Highlight.Name = plr.Name
+    Highlight.FillColor = FillColor
+    Highlight.DepthMode = DepthMode
+    Highlight.FillTransparency = FillTransparency
+    Highlight.OutlineColor = OutlineColor
+    Highlight.OutlineTransparency = 0
+    Highlight.Parent = Storage
+    
+    local plrchar = plr.Character
+    if plrchar then
+        Highlight.Adornee = plrchar
+    end
+
+    connections[plr] = plr.CharacterAdded:Connect(function(char)
+        Highlight.Adornee = char
+    end)
+end
+
+Players.PlayerAdded:Connect(Highlight)
+for i,v in next, Players:GetPlayers() do
+    Highlight(v)
+end
+
+Players.PlayerRemoving:Connect(function(plr)
+    local plrname = plr.Name
+    if Storage[plrname] then
+        Storage[plrname]:Destroy()
+    end
+    if connections[plr] then
+        connections[plr]:Disconnect()
+    end
+end)
+    
+end)
+
+local Section = Tab:NewSection("Hitbox")
+Section:NewButton("Hitbox", "works in swords", function()
+_G.HeadSize = 7
+_G.Disabled = true
+ 
+game:GetService('RunService').RenderStepped:connect(function()
+if _G.Disabled then
+for i,v in next, game:GetService('Players'):GetPlayers() do
+if v.Name ~= game:GetService('Players').LocalPlayer.Name then
+pcall(function()
+v.Character.HumanoidRootPart.Size = Vector3.new(_G.HeadSize,_G.HeadSize,_G.HeadSize)
+v.Character.HumanoidRootPart.Transparency = 0.9
+v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
+v.Character.HumanoidRootPart.Material = "Neon"
+v.Character.HumanoidRootPart.CanCollide = false
+end)
+end
+end
+end
+end)  
+end)
+
+local Section = Tab:NewSection("Tracer")
+Section:NewToggle("Tracers","SEE PEOPLE",function()
+local lplr = game.Players.LocalPlayer
+local camera = game:GetService("Workspace").CurrentCamera
+local CurrentCamera = workspace.CurrentCamera
+local worldToViewportPoint = CurrentCamera.worldToViewportPoint
+
+_G.TeamCheck = True -- Use True or False to toggle TeamCheck
+
+for i,v in pairs(game.Players:GetChildren()) do
+    local Tracer = Drawing.new("Line")
+    Tracer.Visible = false
+    Tracer.Color = Color3.new(255, 0, 0)
+    Tracer.Thickness = 1
+    Tracer.Transparency = 1
+
+    function lineesp()
+        game:GetService("RunService").RenderStepped:Connect(function()
+            if v.Character ~= nil and v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("HumanoidRootPart") ~= nil and v ~= lplr and v.Character.Humanoid.Health > 0 then
+                local Vector, OnScreen = camera:worldToViewportPoint(v.Character.HumanoidRootPart.Position)
+
+                if OnScreen then
+                    Tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 1)
+                    Tracer.To = Vector2.new(Vector.X, Vector.Y)
+
+                    if _G.TeamCheck and v.TeamColor == lplr.TeamColor then
+                        --//Teammates
+                        Tracer.Visible = false
+                    else
+                        --//Enemies
+                        Tracer.Visible = true
+                    end
+                else
+                    Tracer.Visible = false
+                end
+            else
+                Tracer.Visible = false
+            end
+        end)
+    end
+    coroutine.wrap(lineesp)()
+end
+
+game.Players.PlayerAdded:Connect(function(v)
+    local Tracer = Drawing.new("Line")
+    Tracer.Visible = false
+    Tracer.Color = Color3.new(1,1,1)
+    Tracer.Thickness = 1
+    Tracer.Transparency = 1
+
+    function lineesp()
+        game:GetService("RunService").RenderStepped:Connect(function()
+            if v.Character ~= nil and v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("HumanoidRootPart") ~= nil and v ~= lplr and v.Character.Humanoid.Health > 0 then
+                local Vector, OnScreen = camera:worldToViewportPoint(v.Character.HumanoidRootPart.Position)
+
+                if OnScreen then
+                    Tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 1)
+                    Tracer.To = Vector2.new(Vector.X, Vector.Y)
+
+                    if _G.TeamCheck and v.TeamColor == lplr.TeamColor then
+                        --//Teammates
+                        Tracer.Visible = false
+                    else
+                        --//Enemies
+                        Tracer.Visible = true
+                    end
+                else
+                    Tracer.Visible = false
+                end
+            else
+                Tracer.Visible = false
+            end
+        end)
+    end
+    coroutine.wrap(lineesp)()
+end)
+end)
+
+local Tab = Window:NewTab("Utility")
+local Section = Tab:NewSection("Fixcam")
+Section:NewButton("FixCam", "Fix Your Camera", function() 
+         cam.CameraType = Enum.CameraType.Fixed 
+         cam.CameraType = Enum.CameraType.Custom 
+ end)
+ 
+local Section = Tab:NewSection("Fullbright")
+Section:NewButton("Fullbright", "Better Experience", function(state)
+    local Light = game:GetService("Lighting")
+
+function dofullbright()
+Light.Ambient = Color3.new(1, 1, 1)
+Light.ColorShift_Bottom = Color3.new(1, 1, 1)
+Light.ColorShift_Top = Color3.new(1, 1, 1)
+end
+
+dofullbright()
+
+Light.LightingChanged:Connect(dofullbright)local Light = game:GetService("Lighting")
+
+function dofullbright()
+Light.Ambient = Color3.new(1, 1, 1)
+Light.ColorShift_Bottom = Color3.new(1, 1, 1)
+Light.ColorShift_Top = Color3.new(1, 1, 1)
+end
+
+dofullbright()
+
+Light.LightingChanged:Connect(dofullbright)
+
+end)
+
+local Tab = Window:NewTab("World")
+local Section = Tab:NewSection("Antivoid")
+Section:NewToggle("AntiVoid", "New Bouncy Antivoid", function(state)
+    if state then
+        antivoidp = Instance.new("Part", workspace)
+        antivoidp.Name = "AntiVoid"
+        antivoidp.CanCollide = true
+        antivoidp.Size = Vector3.new(2048, 1, 2048)
+        antivoidp.Anchored = true
+        antivoidp.Transparency = 0.55
+        antivoidp.Material = Enum.Material.Neon
+        antivoidp.Color = Color3.fromRGB(255,0,0)
+        antivoidp.Position = Vector3.new(0, 23.5, 0)
+        antivoidp.Touched:connect(function(touchedvoid)
+            if touchedvoid.Parent:FindFirstChild("Humanoid") and touchedvoid.Parent.Name == lplr.Name then
+                lplr.Character.Humanoid.Jump = true
+                lplr.Character.Humanoid:ChangeState("Jumping")
+            end
+        end)
+    else
+        if antivoidp then
+            antivoidp:Remove()
+        end
+    end
+end)
+
+local Section = Tab:NewSection("Chat tag")
+local Section = Tab:NewSection("Already Leak So Isnt Skidded")
+local Section = Tab:NewSection("Idk If Work + Credits to Owner")
+Section:NewToggle("Chat Tag", "ToggleInfo", function(state) -- 💀 
+runFunction(function()
+    local ChatTag = {Enabled = false}
+    ChatTag = GuiLibrary.ObjectsThatCanBeSaved.RenderWindow.Api.CreateOptionsButton({ -- bro fr skidding from a vape config
+        Name = "ChatTag",
+        Function = function(callback)
+            if callback then
+                textChatService.OnIncomingMessage = function(message)
+                    local properties = Instance.new("TextChatMessageProperties")
+                    if message.TextSource then
+                        local player = playersService:GetPlayerByUserId(message.TextSource.UserId)
+                        if player and player.UserId == playersService.LocalPlayer.UserId then
+                            properties.PrefixText = "[ByfronX] " .. message.PrefixText
+                        end
+                    end
+                    return properties
+                end
+            end
+        end
+    })
+end)
+end)
+
+local Section = Tab:NewSection("Bednuker")
+Section:NewButton("BedNuker", "Destroys Exposed Beds", function() -- SKIDDER SKIDDED FROM NIGHTBED
+local Distance = {["Value"] = 30}
+local Breaker = true
+if Breaker then
+    spawn(function()
+        repeat
+            task.wait(0.1)
+            if isAlive(lplr) and lplr.Character:FindFirstChild("Humanoid").Health > 0.1 then
+                local beds = getbeds()
+                for i,v in pairs(beds) do
+                    local mag = (v.Position - lplr.Character:FindFirstChild("HumanoidRootPart").Position).Magnitude
+                    if mag < Distance["Value"] then
+                        game:GetService("ReplicatedStorage").rbxts_include.node_modules:FindFirstChild("@rbxts").net.out._NetManaged.DamageBlock:InvokeServer({
+                            ["blockRef"] = {
+                                ["blockPosition"] = getserverpos(v.Position)
+                            },
+                            ["hitPosition"] = getserverpos(v.Position),
+                            ["hitNormal"] = getserverpos(v.Position)
+                        })
+                    end
+                end
+            end
+        until not Breaker
+    end)
+end
+end)
+
+Section:NewToggle("Bednuker V2", "Upgraded", function(state)
+    loadstring(game:HttpGet("https://pastebin.com/raw/nv0AJ79r"))() -- TRASH SKIDDER, HE SKIDDED MY OWN NUKER I MADE FOR FLAMING DREY
+end)
+
+local Section = Tab:NewSection("Skytheme")
+local Section = Tab:NewSection("From Aurora")
+
+Section:NewButton("Skytheme", "ButtonInfo", function()
+-- Sky Changer
+    game.Lighting.Sky.SkyboxBk = "http://www.roblox.com/asset/?id=415688378"
+    game.Lighting.Sky.SkyboxDn = "http://www.roblox.com/asset/?id=415688193"
+    game.Lighting.Sky.SkyboxFt = "http://www.roblox.com/asset/?id=415688242"
+    game.Lighting.Sky.SkyboxLf = "http://www.roblox.com/asset/?id=415688310"
+    game.Lighting.Sky.SkyboxRt = "http://www.roblox.com/asset/?id=415688274"
+    game.Lighting.Sky.SkyboxUp = "http://www.roblox.com/asset/?id=415688354"
+    game.Lighting.FogColor = Color3.new(236, 88, 241)
+    game.Lighting.FogEnd = 200
+    game.Lighting.FogStart = 0
+    game.Lighting.Ambient = Color3.new(0.5, 0, 1)
+-- Lighting Changer
+local lighting = Color3.fromRGB(255, 0, 0)
+
+game:GetService("Lighting").Ambient = lighting
+game:GetService("Lighting").OutdoorAmbient = lighting
+    print("Clicked")
+end)
+
+local Section = Tab:NewSection("Texture packs")
+Section:NewToggle("Advance TP", "ToggleInfo", function(state) -- TRASH SKIDDED FROM SNOOPY
+--// services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+--// importing the textures
+local objs = game:GetObjects("rbxassetid://13782395340")
+local import = objs[1]
+
+import.Parent = game:GetService("ReplicatedStorage")
+
+--// very epic index
+index = {
+
+	{
+		name = "wood_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Wood_Sword"),
+	},
+	
+	{
+		name = "stone_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Stone_Sword"),
+	},
+	
+	{
+		name = "iron_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Iron_Sword"),
+	},
+	
+	{
+		name = "diamond_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Diamond_Sword"),
+	},
+	
+	{
+		name = "emerald_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Emerald_Sword"),
+	},
+	
+	{
+		name = "rageblade",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-270)),
+		model = import:WaitForChild("Rageblade"),
+	},
+	
+}
+
+--// main viewmodel renderer
+local func = Workspace:WaitForChild("Camera").Viewmodel.ChildAdded:Connect(function(tool)
+	
+	if(not tool:IsA("Accessory")) then return end
+	
+	for i,v in pairs(index) do
+	
+		if(v.name == tool.Name) then
+		
+			for i,v in pairs(tool:GetDescendants()) do
+	
+				if(v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation")) then
+				
+					v.Transparency = 1
+				
+				end
+			
+			end
+		
+			local model = v.model:Clone()
+			model.CFrame = tool:WaitForChild("Handle").CFrame * v.offset
+			model.CFrame *= CFrame.Angles(math.rad(0),math.rad(-50),math.rad(0))
+			model.Parent = tool
+			
+			local weld = Instance.new("WeldConstraint",model)
+			weld.Part0 = model
+			weld.Part1 = tool:WaitForChild("Handle")
+			
+			local tool2 = Players.LocalPlayer.Character:WaitForChild(tool.Name)
+			
+			for i,v in pairs(tool2:GetDescendants()) do
+	
+				if(v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation")) then
+				
+					v.Transparency = 1
+				
+				end
+			
+			end
+			
+			local model2 = v.model:Clone()
+			model2.Anchored = false
+			model2.CFrame = tool2:WaitForChild("Handle").CFrame * v.offset
+			model2.CFrame *= CFrame.Angles(math.rad(0),math.rad(-50),math.rad(0))
+			model2.CFrame *= CFrame.new(1,0,-.9)
+			model2.Parent = tool2
+			
+			local weld2 = Instance.new("WeldConstraint",model)
+			weld2.Part0 = model2
+			weld2.Part1 = tool2:WaitForChild("Handle")
+		
+		end
+	
+	end
+	
+end)
+end)
+
+Section:NewToggle("Cool TP", "ToggleInfo", function(state)
+--// services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+--// importing the textures
+local objs = game:GetObjects("rbxassetid://13732134128")
+local import = objs[1]
+
+import.Parent = game:GetService("ReplicatedStorage")
+
+--// very epic index
+index = {
+
+	{
+		name = "wood_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("wood_sword"),
+	},
+	
+	{
+		name = "stone_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("stone_sword"),
+	},
+	
+	{
+		name = "iron_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("iron_sword"),
+	},
+	
+	{
+		name = "diamond_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("diamond_sword"),
+	}
+	
+}
+
+--// main viewmodel renderer
+local func = Workspace:WaitForChild("Camera").Viewmodel.ChildAdded:Connect(function(tool)
+	
+	if(not tool:IsA("Accessory")) then return end
+	
+	for i,v in pairs(index) do
+	
+		if(v.name == tool.Name) then
+		
+			for i,v in pairs(tool:GetDescendants()) do
+	
+				if(v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation")) then
+				
+					v.Transparency = 1
+				
+				end
+			
+			end
+		
+			local model = v.model:Clone()
+			model.CFrame = tool:WaitForChild("Handle").CFrame * v.offset
+			model.CFrame *= CFrame.Angles(math.rad(0),math.rad(-50),math.rad(0))
+			model.Parent = tool
+model.CanCollide = false
+			
+			local weld = Instance.new("WeldConstraint",model)
+			weld.Part0 = model
+			weld.Part1 = tool:WaitForChild("Handle")
+			
+			local tool2 = Players.LocalPlayer.Character:WaitForChild(tool.Name)
+			
+			for i,v in pairs(tool2:GetDescendants()) do
+	
+				if(v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation")) then
+				
+					v.Transparency = 1
+				
+				end
+			
+			end
+			
+			local model2 = v.model:Clone()
+			model2.Anchored = false
+			model2.CFrame = tool2:WaitForChild("Handle").CFrame * v.offset
+			model2.CFrame *= CFrame.Angles(math.rad(0),math.rad(-50),math.rad(0))
+			model2.CFrame *= CFrame.new(1,0,-.9)
+			model2.Parent = tool2
+model2.CanCollide = false
+			
+			local weld2 = Instance.new("WeldConstraint",model)
+			weld2.Part0 = model2
+			weld2.Part1 = tool2:WaitForChild("Handle")
+		
+		end
+	
+	end
+	
+end)
+end)
+
+Section:NewToggle("ULTIMATE TP", "ToggleInfo", function(state) -- so skidded from snoopy bro what a skidder 
+--// services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+--// importing the textures
+local objs = game:GetObjects("rbxassetid://13481568688")
+local import = objs[1]
+
+import.Parent = game:GetService("ReplicatedStorage")
+
+--// very epic index
+index = {
+
+	{
+		name = "wood_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Wood_Sword"),
+	},
+	
+	{
+		name = "stone_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Stone_Sword"),
+	},
+	
+	{
+		name = "iron_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Iron_Sword"),
+	},
+	
+	{
+		name = "diamond_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Diamond_Sword"),
+	},
+	
+	{
+		name = "emerald_sword",
+		offset = CFrame.Angles(math.rad(0),math.rad(-100),math.rad(-90)),
+		model = import:WaitForChild("Emerald _Sword"),
+	},
+	
+	{
+		name = "wood_pickaxe",
+		offset = CFrame.Angles(math.rad(0),math.rad(-190),math.rad(-95)),
+		model = import:WaitForChild("Wood_Pickaxe"),
+	},
+	
+	{
+		name = "stone_pickaxe",
+		offset = CFrame.Angles(math.rad(0),math.rad(-190),math.rad(-95)),
+		model = import:WaitForChild("Stone_Pickaxe"),
+	},
+	
+	{
+		name = "iron_pickaxe",
+		offset = CFrame.Angles(math.rad(0),math.rad(-190),math.rad(-95)),
+		model = import:WaitForChild("Iron_Pickaxe"),
+	},
+	
+	{
+		name = "diamond_pickaxe",
+		offset = CFrame.Angles(math.rad(0),math.rad(80),math.rad(-95)),
+		model = import:WaitForChild("Diamond_Pickaxe"),
+	},
+	
+	{
+		name = "wood_axe",
+		offset = CFrame.Angles(math.rad(0),math.rad(-10),math.rad(-95)),
+		model = import:WaitForChild("Wood_Axe"),
+	},
+	
+	{
+		name = "stone_axe",
+		offset = CFrame.Angles(math.rad(0),math.rad(-10),math.rad(-95)),
+		model = import:WaitForChild("Stone_Axe"),
+	},
+	
+	{
+		name = "iron_axe",
+		offset = CFrame.Angles(math.rad(0),math.rad(-10),math.rad(-95)),
+		model = import:WaitForChild("Iron_Axe"),
+	},
+	
+	{
+		name = "diamond_axe",
+		offset = CFrame.Angles(math.rad(0),math.rad(-90),math.rad(-95)),
+		model = import:WaitForChild("Diamond_Axe"),
+	},
+	
+	{
+		name = "fireball",
+		offset = CFrame.Angles(math.rad(0),math.rad(-90),math.rad(95)),
+		model = import:WaitForChild("Fireball"),
+	},
+	
+	{
+		name = "telepearl",
+		offset = CFrame.Angles(math.rad(0),math.rad(-90),math.rad(95)),
+		model = import:WaitForChild("Telepearl"),
+	},
+	
+	
+}
+
+--// main viewmodel renderer
+local func = Workspace:WaitForChild("Camera").Viewmodel.ChildAdded:Connect(function(tool)
+	
+	if(not tool:IsA("Accessory")) then return end
+	
+	for i,v in pairs(index) do
+	
+		if(v.name == tool.Name) then
+		
+			for i,v in pairs(tool:GetDescendants()) do
+	
+				if(v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation")) then
+				
+					v.Transparency = 1
+				
+				end
+			
+			end
+		
+			local model = v.model:Clone()
+			model.CFrame = tool:WaitForChild("Handle").CFrame * v.offset
+			model.CFrame *= CFrame.Angles(math.rad(0),math.rad(-50),math.rad(0))
+			model.Parent = tool
+			
+			local weld = Instance.new("WeldConstraint",model)
+			weld.Part0 = model
+			weld.Part1 = tool:WaitForChild("Handle")
+			
+			local tool2 = Players.LocalPlayer.Character:WaitForChild(tool.Name)
+			
+			for i,v in pairs(tool2:GetDescendants()) do
+	
+				if(v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation")) then
+				
+					v.Transparency = 1
+				
+				end
+			
+			end
+			
+			local model2 = v.model:Clone()
+			model2.Anchored = false
+			model2.CFrame = tool2:WaitForChild("Handle").CFrame * v.offset
+			model2.CFrame *= CFrame.Angles(math.rad(0),math.rad(-50),math.rad(0))
+			model2.CFrame *= CFrame.new(1,0,-.9)
+			model2.Parent = tool2
+			
+			local weld2 = Instance.new("WeldConstraint",model)
+			weld2.Part0 = model2
+			weld2.Part1 = tool2:WaitForChild("Handle")
+		
+		end
+	
+	end
+	
+end)
+
+task.wait(5)
+func:Disconnect()
+end)
+
+local Section = Tab:NewSection("Settings")
+Section:NewToggle("Speed", "ToggleInfo", function(state) 
+game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = s -- S?
+end)
+
+Section:NewSlider("Speed Slider", "SliderInfo", 23.3, 0, function(s) -- 500 (MaxValue) | 0 (MinValue)
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 23
+end)
+
+Section:NewButton("Gravity", "ButtonInfo", function()
+game.Workspace.Gravity = 75   
+end)
+
+Section:NewButton("Disabled Gravity", "ButtonInfo", function()
+game.Workspace.Gravity = 192  
+end)
+
+Section:NewToggle("Fov", "Changes The Fov", function(state)
+
+    if state then
+
+        game.Workspace.CurrentCamera.FieldOfView = 120
+
+    else
+
+        game.Workspace.CurrentCamera.FieldOfView = 80
+
+    end
+
+end)
+
+Section:NewButton("Inf Jump", "ButtonInfo", function()
+local InfiniteJumpEnabled = true game:GetService("UserInputService").JumpRequest:connect(function()  if InfiniteJumpEnabled then   game:GetService"Players".LocalPlayer.Character:FindFirstChildOfClass'Humanoid':ChangeState("Jumping")  end end)
+end)
+
+local Tab = Window:NewTab("Misc")
+local Section = Tab:NewSection("Dont work | Displayed Buttons")
+
+local Section = Tab:NewSection("Auto Sprint")
+Section:NewToggle("Auto-Sprint", "Auto Sprint", function(state)  
+          if state then  
+                  BindToStepped("Sprint", 1, function()  
+                          if SprintCont.sprinting == false then  
+                                  SprintCont:startSprinting()  
+                          end  
+                  end)  
+          else  
+                  UnbindFromStepped("Sprint")  
+                  SprintCont:stopSprinting()  
+          end  
+  end)   
+
+local Section = Tab:NewSection("China hat")
+Section:NewToggle("ChinaHat", "Fe", function(state)
+       if state then
+             chinahatenabled = state
+        if chinahatenabled then
+			spawn(function()
+                repeat
+                    task.wait(0.3)
+                    if (not chinahatenabled) then return end
+                    if entity.isAlive then
+                        if chinahattrail == nil or chinahattrail.Parent == nil then
+                            chinahattrail = Instance.new("Part")
+                            chinahattrail.CFrame = lplr.Character.Head.CFrame * CFrame.new(0, 1.1, 0)
+                            chinahattrail.Size = Vector3.new(3, 0.7, 3)
+                            chinahattrail.Name = "ChinaHat"
+                            chinahattrail.Material = Enum.Material.Neon
+                            chinahattrail.CanCollide = false
+                            chinahattrail.Transparency = 0.3
+                            local chinahatmesh = Instance.new("SpecialMesh")
+                            chinahatmesh.Parent = chinahattrail
+                            chinahatmesh.MeshType = "FileMesh"
+                            chinahatmesh.MeshId = "http://www.roblox.com/asset/?id=1778999"
+                            chinahatmesh.Scale = Vector3.new(3, 0.6, 3)
+                            local chinahatweld = Instance.new("WeldConstraint")
+                            chinahatweld.Name = "WeldConstraint"
+                            chinahatweld.Parent = chinahattrail
+                            chinahatweld.Part0 = lplr.Character.Head
+                            chinahatweld.Part1 = chinahattrail
+                            chinahattrail.Parent = workspace.Camera
+                        else
+                            chinahattrail.Parent = workspace.Camera
+                            chinahattrail.CFrame = lplr.Character.Head.CFrame * CFrame.new(0, 1.1, 0)
+                            chinahattrail.LocalTransparencyModifier = ((cam.CFrame.Position - cam.Focus.Position).Magnitude <= 0.6 and 1 or 0)
+                            if chinahattrail:FindFirstChild("WeldConstraint") then
+                                chinahattrail.WeldConstraint.Part0 = lplr.Character.Head
+                            end
+                        end
+                    else
+                        if chinahattrail then 
+                            chinahattrail:remove()
+                            chinahattrail = nil
+                        end
+                    end
+                until (not chinahatenabled)
+            end)
+        else
+            if chinahattrail then
+                chinahattrail:Remove()
+                chinahattrail = nil
+            end
+        end
+    end
+end)
+
+local Section = Tab:NewSection("ShopBypass")
+Section:NewToggle("ShopBypass", "Bypass", function(state) 
+  if state then
+   if (bypassstpidshoptiers) then
+            for i,v in pairs(shopthingyshopshop) do
+                oldtiered = oldtiered or v.tiered
+                oldnexttier = oldnexttier or v.nextTier
+            end
+            for i,v in pairs(shopthingyshopshop) do
+                v.tiered = nil
+                v.nextTier = nil
+            end
+        else
+            for i,v in pairs(shopthingyshopshop) do
+                v.tiered = oldtiered
+                v.nextTier = oldnexttier
+            end
+        end
+    end
+end)
+
+local Section = Tab:NewSection("Instant Kill")
+Section:NewToggle("Instant Kill", "ToggleInfo", function(state) -- bozo skidded it from ironsnow
+runcode(function()
+    local InstantKill = {Enabled = false}
+
+    InstantKill = GuiLibrary.ObjectsThatCanBeSaved.CombatWindow.Api.CreateOptionsButton({
+        Name = "Old InstantKill",
+        Function = function(callback)
+            if callback then
+                task.spawn(function()
+                    repeat
+                        task.wait()
+                        local args = {
+                            [1] = {
+                                ["weapon"] = "diamond_great_hammer",
+                                ["chargeRatio"] = 1
+                            }
+                        }
+                                
+                        game:GetService("ReplicatedStorage").rbxts_include.node_modules["@rbxts"].net.out._NetManaged.SwordSwingMiss:FireServer(unpack(args))
+                    until not InstantKill.Enabled
+                end)
+            end
+        end
+    })
+end)
+end)
+
+local Section = Tab:NewSection("Autofarm")
+Section:NewToggle("AutoFarm", "Recommend use in Solo", function(state)
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/98KRapid/Vicious/main/BedwarsAfkFarm'))()
+end)
+
+
+local Tab = Window:NewTab("Animation")
+local Section = Tab:NewSection("Animation for good Experience")
+
+Section:NewToggle("Zombie" , "?",function(state)
+if state then
+ loadstring(game:HttpGet("https://pastebin.com/raw/t3yTSPRn",true))() 
+ end 
+ end) 
+  
+Section:NewToggle("Ninja","?",function(state)
+ if state then
+ local Animate = game.Players.LocalPlayer.Character.Animate
+Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=656117400"
+Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=656118341"
+Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=656121766"
+Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=656118852"
+Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=656117878"
+Animate.climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=656114359"
+Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=656115606"
+ end
+ end) 
+
+Section:NewToggle("Toy","?",function(state) 
+ if state then
+ local Animate =
+ game.Players.LocalPlayer.Character.Animate 
+ Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=782841498" 
+ Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=782845736" 
+ Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=782843345" 
+ Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=782842708" 
+ Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=782847020" 
+ Animate.climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=782843869" 
+ Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=782846423" 
+ end 
+ end) 
+
+Section:NewToggle("Levitation","",function(state) 
+ if state then
+ local Animate = 
+ game.Players.LocalPlayer.Character.Animate 
+ Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=616006778"
+Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=616008087"
+Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=616013216"
+Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=616010382"
+Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=616008936"
+Animate.climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=616003713"
+Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=616005863"
+ end
+ end) 
+
+Section:NewToggle("Cartoony","?",function(state) 
+if state then
+ local Animate = 
+ game.Players.LocalPlayer.Character.Animate 
+ Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=742637544"
+Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=742638445"
+Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=742640026"
+Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=742638842"
+Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=742637942"
+Animate.climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=742636889"
+Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=742637151"
+ end
+ end) 
+
+Section:NewToggle("Pirate","?",function(state)
+if state then
+    local Animate =
+ game.Players.LocalPlayer.Character.Animate
+ Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=750781874"
+Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=750782770"
+Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=750785693"
+Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=750783738"
+Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=750782230"
+Animate.climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=750779899"
+Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=750780242"
+end
+end) 
+Section:NewToggle("Vampire","?",function(state)
+if state then
+    local Animate = 
+ game.Players.LocalPlayer.Character.Animate
+ Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=1083445855"
+Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=1083450166"
+Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=1083473930"
+Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=1083462077"
+Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=1083455352"
+Animate.climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=1083439238"
+Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=1083443587"
+end
+end) 
+
+Section:NewToggle("Stylish","?",function(state)
+if state then
+    local Animate = 
+ game.Players.LocalPlayer.Character.Animate
+ Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=616136790"
+Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=616138447"
+Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=616146177"
+Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=616140816"
+Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=616139451"
+Animate.climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=616133594"
+Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=616134815"
+end
+end) 
+
+Section:NewToggle("Bubbly","?",function(state)
+if state then
+    local Animate = 
+ game.Players.LocalPlayer.Character.Animate
+ Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=910004836"
+Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=910009958"
+Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=910034870"
+Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=910025107"
+Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=910016857"
+Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=910001910"
+Animate.swimidle.SwimIdle.AnimationId = "http://www.roblox.com/asset/?id=910030921"
+Animate.swim.Swim.AnimationId = "http://www.roblox.com/asset/?id=910028158"
+end
+end)
+
+Section:NewToggle("TanqR Animation", "By Aurora", function(state)
+--TanqR Animation Pack By XStormDeveloper
+while true do
+local Animate = game.Players.LocalPlayer.Character.Animate
+Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=782841498"
+Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=782845736"
+Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=656121766"
+Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=656118852"
+Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=656117878"
+Animate.climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=656114359"
+Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=656115606"
+game.Players.LocalPlayer.Character.Humanoid.Jump = false
+wait(1)
+end
+end)
+
+Section:NewToggle("15R Animation", "ToggleInfo", function(state)
+local Animate = game.Players.LocalPlayer.Character.Animate
+Animate.walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=4211223236"
+Animate.run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=4211220381"
+Animate.idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=4211217646"
+Animate.idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=4211218409"
+Animate.jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=4211219390"
+Animate.fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=4211216152"
+Animate.climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=421121499"
+ 
+game.Players.LocalPlayer.Character.Humanoid.Jump = false
+end)
+local Tab = Window:NewTab("Support/Info")
+local Section = Tab:NewSection("Owner Of Script || ByfronXDev")
+local Section = Tab:NewSection("Discord || ByfronXDev")
+local Section = Tab:NewSection("Youtube || ByfronXDev")
+local Section = Tab:NewSection("Display Name || ByfronXDev") 
+local Section = Tab:NewSection("Noted: its beta") -- insane bro
+local Section = Tab:NewSection("Made By ByfronXDev") 
